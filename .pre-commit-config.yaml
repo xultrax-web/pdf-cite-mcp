@@ -1,0 +1,23 @@
+# Pre-commit hook config · runs ruff format + ruff check on staged Python
+# files before every commit. Mirrors the husky + lint-staged setup in
+# agent-memory-mcp; closes the same gap (editor format-on-save bypassed
+# when files are written outside the editor, e.g. by AI tooling).
+#
+# Install (one-time per clone):
+#   uv tool install pre-commit
+#   pre-commit install
+#
+# After install, every `git commit` runs ruff on staged files. Use
+# `pre-commit run --all-files` to lint the whole tree on demand.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.14
+    hooks:
+      # Auto-format Python files (writes the file + re-stages)
+      - id: ruff-format
+        types_or: [python, pyi]
+      # Lint with --fix to auto-correct what's auto-correctable
+      - id: ruff-check
+        args: [--fix]
+        types_or: [python, pyi]
