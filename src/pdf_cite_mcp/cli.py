@@ -50,6 +50,20 @@ def main() -> int:
     quote.add_argument("file")
     quote.add_argument("text", help="The phrase to locate")
 
+    ocr = sub.add_parser("ocr", help="OCR specified pages and print cited text")
+    ocr.add_argument("file")
+    ocr.add_argument(
+        "pages", help="Comma-separated 1-indexed page numbers (e.g. '1,3,5')"
+    )
+    ocr.add_argument("--dpi", type=int, default=200, help="Render DPI (default 200)")
+
+    tables = sub.add_parser(
+        "tables",
+        help="Extract every table on a page as markdown + bbox citations",
+    )
+    tables.add_argument("file")
+    tables.add_argument("page", type=int, help="1-indexed page number")
+
     args = p.parse_args()
 
     if args.cmd is None or args.cmd == "serve":
@@ -81,6 +95,19 @@ def main() -> int:
         from .server import pdf_quote
 
         _print_json(pdf_quote(args.file, args.text))
+        return 0
+
+    if args.cmd == "ocr":
+        from .server import pdf_ocr_pages
+
+        page_list = [int(x) for x in args.pages.split(",") if x.strip()]
+        _print_json(pdf_ocr_pages(args.file, page_list, args.dpi))
+        return 0
+
+    if args.cmd == "tables":
+        from .server import pdf_extract_tables
+
+        _print_json(pdf_extract_tables(args.file, args.page))
         return 0
 
     p.print_help()

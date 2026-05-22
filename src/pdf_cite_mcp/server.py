@@ -256,6 +256,130 @@ def pdf_quote(file_path: str, quote: str) -> dict[str, Any]:
     return result.to_dict()
 
 
+@mcp.tool()
+def pdf_ocr_pages(
+    file_path: str, pages: list[int], dpi: int = 200
+) -> dict[str, Any]:
+    """OCR specified pages of a PDF and return cited content.
+
+    Use for pages flagged in `pdf_info`'s `scanned_pages` field. Per-word
+    Tesseract confidence flows into each Citation so an agent can tell
+    high-confidence OCR'd grounding from low-confidence guesses.
+
+    Args:
+        file_path: Path to the PDF.
+        pages: 1-indexed page numbers to OCR.
+        dpi: Render DPI (default 200). 300+ for sharper text at 2-4x CPU.
+
+    Requires the `pdf-cite-mcp[ocr]` extras and the system `tesseract`
+    binary on PATH (verified by `pdf_doctor` in PHASE D).
+    """
+    from .ocr import ocr_page
+
+    path = _resolve_pdf(file_path)
+    sha, _ = _parse_and_cache(path)
+
+    cites: list[Citation] = []
+    chunks: list[str] = []
+    for page_no in pages:
+        ocr_result = ocr_page(path, page_no, dpi=dpi)
+        words = ocr_result["words"]
+        if words:
+            x0 = min(w["bbox"][0] for w in words)
+            y0 = min(w["bbox"][1] for w in words)
+            x1 = max(w["bbox"][2] for w in words)
+            y1 = max(w["bbox"][3] for w in words)
+            bbox: tuple[float, float, float, float] = (x0, y0, x1, y1)
+            mean_conf = sum(w["confidence"] for w in words) / len(words)
+        else:
+            bbox = (0.0, 0.0, 0.0, 0.0)
+            mean_conf = 0.0
+
+        snippet = ocr_result["text"][:200]
+        chunks.append(f"--- Page {page_no} (OCR @ {dpi} DPI) ---\n{ocr_result['text']}")
+        cites.append(
+            Citation(
+                page=page_no,
+                bbox=bbox,
+                snippet=snippet,
+                confidence=round(mean_conf, 2),
+            )
+        )
+
+    result = CitedContent(
+        content="\n\n".join(chunks),
+        citations=cites,
+        metadata={"sha256": sha, "source": str(path), "dpi": dpi},
+    )
+    return result.to_dict()
+
+
+@mcp.tool()
+def pdf_extract_tables(file_path: str, page: int) -> dict[str, Any]:
+    """Extract every table on a page as markdown + bbox citations.
+
+    Each detected table becomes a markdown block (GitHub-flavored) and a
+    Citation whose bbox spans the table's outer rectangle. Tables that
+    pdfplumber can't detect (e.g. no rule lines + irregular spacing) won't
+    appear — fall back to `pdf_quote` for the values you need.
+
+    Args:
+        file_path: Path to the PDF.
+        page: 1-indexed page number to scan for tables.
+
+    Requires the `pdf-cite-mcp[tables]` extras (pdfplumber).
+    """
+    from .tables import extract_tables_on_page
+
+    path = _resolve_pdf(file_path)
+    sha, _ = _parse_and_cache(path)
+
+    tables = extract_tables_on_page(path, page)
+    cites: list[Citation] = []
+    chunks: list[str] = []
+    for t in tables:
+        bbox: tuple[float, float, float, float] = (
+            t["bbox"][0],
+            t["bbox"][1],
+            t["bbox"][2],
+            t["bbox"][3],
+        )
+        snippet = (
+            t["markdown"].splitlines()[0][:200]
+            if t["markdown"]
+            else f"table {t['table_index']}"
+        )
+        cites.append(
+            Citation(
+                page=page,
+                bbox=bbox,
+                snippet=snippet,
+                confidence=1.0,
+            )
+        )
+        chunks.append(
+            f"### Table {t['table_index']} · {t['rows']}x{t['cols']} on page {page}\n\n"
+            + t["markdown"]
+        )
+
+    if not tables:
+        content = f"No tables detected on page {page}."
+    else:
+        content = "\n\n".join(chunks)
+
+    result = CitedContent(
+        content=content,
+        citations=cites,
+        metadata={
+            "sha256": sha,
+            "source": str(path),
+            "page": page,
+            "tables": len(tables),
+        },
+    )
+    return result.to_dict()
+
+
 def run_stdio() -> None:
     """Entry point for stdio MCP transport."""
     mcp.run()
