@@ -19,7 +19,6 @@ from pdf_cite_mcp.server import (
 )
 from pdf_cite_mcp.url_fetch import UnsafeURLError, is_url_safe, safe_download
 
-
 # ─── doctor ──────────────────────────────────────────────────────────
 
 
@@ -89,7 +88,7 @@ def test_url_safety_rejects_non_http_scheme() -> None:
 
 
 def test_url_safety_rejects_file_scheme() -> None:
-    safe, reason = is_url_safe("file:///etc/passwd")
+    safe, _reason = is_url_safe("file:///etc/passwd")
     assert safe is False
 
 

@@ -102,8 +102,7 @@ def safe_download(
         with client.stream("GET", url) as resp:
             if resp.status_code in (301, 302, 303, 307, 308):
                 raise UnsafeURLError(
-                    "Refused to follow redirect (SSRF protection). Use the "
-                    "final URL directly."
+                    "Refused to follow redirect (SSRF protection). Use the final URL directly."
                 )
             resp.raise_for_status()
             ctype = resp.headers.get("content-type", "").lower().split(";")[0].strip()
@@ -118,9 +117,7 @@ def safe_download(
                     total += len(chunk)
                     if total > max_bytes:
                         tmp.unlink(missing_ok=True)
-                        raise UnsafeURLError(
-                            f"PDF exceeds size cap ({max_bytes} bytes)"
-                        )
+                        raise UnsafeURLError(f"PDF exceeds size cap ({max_bytes} bytes)")
                     f.write(chunk)
     tmp.replace(out)
     return out

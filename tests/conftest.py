@@ -6,7 +6,6 @@ binary fixture — keeps the repo lean and makes the test content explicit.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import fitz  # type: ignore[import-untyped]

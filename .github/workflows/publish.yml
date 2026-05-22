@@ -1,0 +1,101 @@
+name: Publish on tag
+
+# Fires on git tags matching v* (v0.1.0, v0.2.0, v1.0.0-rc1, etc.).
+# Publishes to BOTH PyPI and the MCP Registry using OIDC trusted
+# publishing — no long-lived tokens stored anywhere.
+#
+# Pre-requisites (one-time setup):
+#   - PyPI: configure a Pending Trusted Publisher at
+#     https://pypi.org/manage/account/publishing/
+#     → owner: xultrax-web (GitHub) · repo: pdf-cite-mcp
+#     → workflow: publish.yml · environment: pypi
+#   - MCP Registry: nothing to configure; github-oidc login uses the
+#     same workflow OIDC token automatically.
+#
+# To release: bump version in pyproject.toml, commit, then
+#   git tag v0.1.0 && git push origin v0.1.0
+# The workflow handles version sync, build, tests, and both publishes.
+
+on:
+  push:
+    tags: ["v*"]
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (must match pyproject.toml)"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for PyPI OIDC AND MCP Registry OIDC
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12 (build runner)
+        run: uv python install 3.12
+
+      - name: Install tesseract (for tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Verify tag matches pyproject.toml version
+        if: github.event_name == 'push'
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pyproject.toml version $PKG_VERSION"
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME matches pyproject.toml version $PKG_VERSION OK"
+
+      - name: Run tests
+        run: uv run pytest -v
+
+      - name: Build distribution
+        run: uv build
+
+      # ----------------------------------------------------------------
+      # PyPI publish via OIDC Trusted Publishing (no API token).
+      # Uses the official pypa action which handles the OIDC handshake.
+      # ----------------------------------------------------------------
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      # ----------------------------------------------------------------
+      # MCP Registry publish via GitHub Actions OIDC.
+      # ----------------------------------------------------------------
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz \
+            | tar xz mcp-publisher
+          chmod +x ./mcp-publisher
+
+      - name: Sync server.json version from pyproject.toml
+        run: |
+          PKG_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          jq --arg v "$PKG_VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp
+          mv server.tmp server.json
+          echo "server.json now declares version $PKG_VERSION"
+
+      - name: Authenticate to MCP Registry (OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish

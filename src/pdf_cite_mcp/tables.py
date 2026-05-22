@@ -66,9 +66,7 @@ def _render_markdown(rows: list[list[str | None]]) -> str:
     return "\n".join(lines)
 
 
-def extract_tables_on_page(
-    pdf_path: Path, page_no: int
-) -> list[dict[str, Any]]:
+def extract_tables_on_page(pdf_path: Path, page_no: int) -> list[dict[str, Any]]:
     """Return every table detected on the page as markdown + bbox metadata.
 
     Each entry:
@@ -86,9 +84,7 @@ def extract_tables_on_page(
     results: list[dict[str, Any]] = []
     with pdfplumber.open(str(pdf_path)) as pdf:
         if page_no < 1 or page_no > len(pdf.pages):
-            raise ValueError(
-                f"page_no {page_no} out of range (1..{len(pdf.pages)})"
-            )
+            raise ValueError(f"page_no {page_no} out of range (1..{len(pdf.pages)})")
         page = pdf.pages[page_no - 1]
         for idx, table in enumerate(page.find_tables()):
             rows = table.extract() or []

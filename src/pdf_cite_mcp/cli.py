@@ -52,9 +52,7 @@ def main() -> int:
 
     ocr = sub.add_parser("ocr", help="OCR specified pages and print cited text")
     ocr.add_argument("file")
-    ocr.add_argument(
-        "pages", help="Comma-separated 1-indexed page numbers (e.g. '1,3,5')"
-    )
+    ocr.add_argument("pages", help="Comma-separated 1-indexed page numbers (e.g. '1,3,5')")
     ocr.add_argument("--dpi", type=int, default=200, help="Render DPI (default 200)")
 
     tables = sub.add_parser(
@@ -78,12 +76,8 @@ def main() -> int:
 
     sub.add_parser("doctor", help="Health check: Python, deps, OCR, tables, cache")
     sub.add_parser("cache-stats", help="Cache stats: doc count, page count, size")
-    cache_clear = sub.add_parser(
-        "cache-clear", help="Clear cache (all docs unless --sha256 given)"
-    )
-    cache_clear.add_argument(
-        "--sha256", help="Clear only the document with this sha256"
-    )
+    cache_clear = sub.add_parser("cache-clear", help="Clear cache (all docs unless --sha256 given)")
+    cache_clear.add_argument("--sha256", help="Clear only the document with this sha256")
 
     args = p.parse_args()
 

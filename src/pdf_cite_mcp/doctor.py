@@ -24,11 +24,7 @@ def _safe_import(module_name: str) -> tuple[bool, str]:
         mod = __import__(module_name)
     except ImportError as e:
         return False, f"not installed ({e})"
-    version = (
-        getattr(mod, "__version__", None)
-        or getattr(mod, "VERSION", None)
-        or "unknown"
-    )
+    version = getattr(mod, "__version__", None) or getattr(mod, "VERSION", None) or "unknown"
     return True, str(version)
 
 
@@ -58,8 +54,8 @@ def run_doctor() -> dict[str, Any]:
     try:
         import fitz  # type: ignore[import-untyped]
 
-        report["deps"]["pymupdf"] = (
-            getattr(fitz, "__version__", None) or getattr(fitz, "version", "unknown")
+        report["deps"]["pymupdf"] = getattr(fitz, "__version__", None) or getattr(
+            fitz, "version", "unknown"
         )
         if isinstance(report["deps"]["pymupdf"], tuple):
             report["deps"]["pymupdf"] = report["deps"]["pymupdf"][0]
@@ -73,9 +69,7 @@ def run_doctor() -> dict[str, Any]:
 
         report["ocr"]["pytesseract"] = pytesseract.__version__
         try:
-            report["ocr"]["tesseract_binary"] = str(
-                pytesseract.get_tesseract_version()
-            )
+            report["ocr"]["tesseract_binary"] = str(pytesseract.get_tesseract_version())
             report["ocr"]["available"] = True
         except Exception as e:  # TesseractNotFoundError + others
             report["ocr"]["tesseract_binary"] = f"not found ({type(e).__name__})"
@@ -88,18 +82,14 @@ def run_doctor() -> dict[str, Any]:
     except ImportError:
         report["ocr"]["pytesseract"] = "not installed"
         report["ocr"]["available"] = False
-        report["issues"].append(
-            "OCR extras not installed — `uv add 'pdf-cite-mcp[ocr]'`"
-        )
+        report["issues"].append("OCR extras not installed — `uv add 'pdf-cite-mcp[ocr]'`")
 
     # Tables extras
     ok, info = _safe_import("pdfplumber")
     report["tables"]["pdfplumber"] = info
     report["tables"]["available"] = ok
     if not ok:
-        report["issues"].append(
-            "Table extras not installed — `uv add 'pdf-cite-mcp[tables]'`"
-        )
+        report["issues"].append("Table extras not installed — `uv add 'pdf-cite-mcp[tables]'`")
 
     # Cache directory
     cdir = cache_dir()

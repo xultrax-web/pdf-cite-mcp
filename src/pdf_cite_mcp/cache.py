@@ -139,9 +139,7 @@ class Cache:
 
     def get_document(self, sha256: str) -> CachedDocument | None:
         with self._connect() as con:
-            row = con.execute(
-                "SELECT * FROM documents WHERE sha256 = ?", (sha256,)
-            ).fetchone()
+            row = con.execute("SELECT * FROM documents WHERE sha256 = ?", (sha256,)).fetchone()
         if not row:
             return None
         return CachedDocument(
@@ -154,9 +152,7 @@ class Cache:
             parsed_at=row["parsed_at"],
         )
 
-    def upsert_page(
-        self, sha256: str, page_no: int, text: str, words: list[dict]
-    ) -> None:
+    def upsert_page(self, sha256: str, page_no: int, text: str, words: list[dict]) -> None:
         with self._connect() as con:
             con.execute(
                 """INSERT INTO pages (sha256, page_no, text, words_json, parsed_at)

@@ -239,9 +239,7 @@ def pdf_quote(file_path: str, quote: str) -> dict[str, Any]:
         cp = cache.get_page(sha, page_no)
         if cp is None:
             continue
-        all_cites.extend(
-            find_quote_in_page(page_no, cp.words, quote, confidence=confidence)
-        )
+        all_cites.extend(find_quote_in_page(page_no, cp.words, quote, confidence=confidence))
 
     if all_cites:
         content = "\n".join(f"[page {c.page}] {c.snippet}" for c in all_cites)
@@ -262,9 +260,7 @@ def pdf_quote(file_path: str, quote: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def pdf_ocr_pages(
-    file_path: str, pages: list[int], dpi: int = 200
-) -> dict[str, Any]:
+def pdf_ocr_pages(file_path: str, pages: list[int], dpi: int = 200) -> dict[str, Any]:
     """OCR specified pages of a PDF and return cited content.
 
     Use for pages flagged in `pdf_info`'s `scanned_pages` field. Per-word
@@ -350,9 +346,7 @@ def pdf_extract_tables(file_path: str, page: int) -> dict[str, Any]:
             t["bbox"][3],
         )
         snippet = (
-            t["markdown"].splitlines()[0][:200]
-            if t["markdown"]
-            else f"table {t['table_index']}"
+            t["markdown"].splitlines()[0][:200] if t["markdown"] else f"table {t['table_index']}"
         )
         cites.append(
             Citation(

@@ -37,9 +37,7 @@ def table_pdf(tmp_path: Path) -> Path:
     ]
     for r, row in enumerate(cells):
         for c, val in enumerate(row):
-            page.insert_text(
-                (cols[c] + 6, rows[r] + 30), val, fontsize=11
-            )
+            page.insert_text((cols[c] + 6, rows[r] + 30), val, fontsize=11)
     out = tmp_path / "table.pdf"
     doc.save(str(out))
     doc.close()

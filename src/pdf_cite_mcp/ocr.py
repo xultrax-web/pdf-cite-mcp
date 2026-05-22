@@ -66,18 +66,14 @@ def ocr_page(pdf_path: Path, page_no: int, dpi: int = OCR_DPI) -> dict[str, Any]
     doc = fitz.open(str(pdf_path))
     try:
         if page_no < 1 or page_no > doc.page_count:
-            raise ValueError(
-                f"page_no {page_no} out of range (1..{doc.page_count})"
-            )
+            raise ValueError(f"page_no {page_no} out of range (1..{doc.page_count})")
         page = doc[page_no - 1]
         rect = page.rect
         scale = dpi / 72.0
         matrix = fitz.Matrix(scale, scale)
         pix = page.get_pixmap(matrix=matrix, alpha=False)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
-        data = pytesseract.image_to_data(
-            img, output_type=pytesseract.Output.DICT
-        )
+        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
     finally:
         doc.close()
 
