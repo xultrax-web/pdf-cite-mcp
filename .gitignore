@@ -17,7 +17,7 @@ htmlcov/
 .tox/
 .mypy_cache/
 .ruff_cache/
-uv.lock
+# uv.lock IS committed (reproducible installs + CI cache key)
 
 # IDE
 .vscode/
