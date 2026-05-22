@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.xultrax-web/pdf-cite-mcp",
+  "description": "Cite your sources. PDF MCP that returns precise page+bbox citations.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/xultrax-web/pdf-cite-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registry_type": "pypi",
+      "identifier": "pdf-cite-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environment_variables": [
+        {
+          "name": "PDF_CITE_CACHE_DIR",
+          "description": "Override cache directory (default: ~/.pdf-cite)",
+          "is_required": false,
+          "is_secret": false
+        }
+      ]
+    }
+  ]
+}
