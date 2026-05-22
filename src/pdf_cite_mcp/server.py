@@ -16,6 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from .cache import Cache, CachedDocument, sha256_file
 from .citation import Citation, CitedContent
 from .extractor import extract_meta, extract_page, open_pdf
+from .quote import bbox_from_words, find_quote_in_page
 
 mcp = FastMCP("pdf-cite-mcp")
 _cache: Cache | None = None
@@ -157,6 +158,100 @@ def pdf_read_pages(file_path: str, pages: list[int]) -> dict[str, Any]:
         content="\n\n".join(chunks),
         citations=cites,
         metadata={"sha256": sha, "source": str(path)},
+    )
+    return result.to_dict()
+
+
+@mcp.tool()
+def pdf_search(file_path: str, query: str, k: int = 5) -> dict[str, Any]:
+    """Search a PDF with BM25 ranking and return cited matches.
+
+    Each result is a page-level citation — for word-level precision on a
+    specific quote, follow up with `pdf_quote`.
+
+    Args:
+        file_path: Path to the PDF.
+        query: FTS5 query. Supports `"phrase searches"`, boolean
+            `AND` / `OR` / `NOT`, and prefix matching like `oper*`.
+            Bare terms are AND'd together.
+        k: Max number of pages to return (default 5).
+    """
+    path = _resolve_pdf(file_path)
+    sha, _ = _parse_and_cache(path)
+    cache = get_cache()
+    rows = cache.search_fts(sha, query, k)
+
+    cites: list[Citation] = []
+    summary_chunks: list[str] = []
+    for r in rows:
+        page_no = r["page_no"]
+        cp = cache.get_page(sha, page_no)
+        bbox = bbox_from_words(cp.words) if cp else (0.0, 0.0, 0.0, 0.0)
+        snip = (r["snip"] or "").strip() or (cp.text[:160] if cp else "")
+        cites.append(
+            Citation(
+                page=page_no,
+                bbox=bbox,
+                snippet=snip,
+                confidence=1.0,
+            )
+        )
+        summary_chunks.append(f"[page {page_no} · bm25 {r['rank']:.2f}] {snip}")
+
+    result = CitedContent(
+        content="\n".join(summary_chunks) if summary_chunks else "No matches.",
+        citations=cites,
+        metadata={"sha256": sha, "source": str(path), "query": query, "k": k},
+    )
+    return result.to_dict()
+
+
+@mcp.tool()
+def pdf_quote(file_path: str, quote: str) -> dict[str, Any]:
+    """Find an exact quote in a PDF and return precise word-level citations.
+
+    The killer tool: returns ALL occurrences of `quote` in the document with
+    tight word-union bboxes. Use this when an agent needs to ground a
+    specific claim back to a verifiable rectangle on a verifiable page.
+
+    Matching is case-insensitive and tolerates edge punctuation per word
+    (e.g. trailing commas, periods, quotes). Whitespace between words is
+    normalized. Hyphenated line breaks and fuzzy matches are out of scope
+    for v0.1 — rapidfuzz integration is queued for v0.1.x.
+
+    Args:
+        file_path: Path to the PDF.
+        quote: The exact phrase to find. Multi-word quotes are matched as
+            a contiguous sequence of words.
+    """
+    path = _resolve_pdf(file_path)
+    sha, cached = _parse_and_cache(path)
+    cache = get_cache()
+    confidence = 1.0 if cached.has_text_layer else 0.0
+
+    all_cites: list[Citation] = []
+    for page_no in range(1, cached.pages + 1):
+        cp = cache.get_page(sha, page_no)
+        if cp is None:
+            continue
+        all_cites.extend(
+            find_quote_in_page(page_no, cp.words, quote, confidence=confidence)
+        )
+
+    if all_cites:
+        content = "\n".join(f"[page {c.page}] {c.snippet}" for c in all_cites)
+    else:
+        content = "No exact match found. Try `pdf_search` for ranked relevance."
+
+    result = CitedContent(
+        content=content,
+        citations=all_cites,
+        metadata={
+            "sha256": sha,
+            "source": str(path),
+            "quote": quote,
+            "matches": len(all_cites),
+        },
     )
     return result.to_dict()
 

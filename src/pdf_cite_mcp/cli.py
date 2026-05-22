@@ -38,6 +38,18 @@ def main() -> int:
         help="Comma-separated 1-indexed page numbers (e.g. '1,3,5')",
     )
 
+    search = sub.add_parser("search", help="BM25 search a PDF and print cited matches")
+    search.add_argument("file")
+    search.add_argument("query", help="FTS5 query string")
+    search.add_argument("-k", type=int, default=5, help="Max results (default 5)")
+
+    quote = sub.add_parser(
+        "quote",
+        help="Find an exact quote in a PDF and print precise bbox citations",
+    )
+    quote.add_argument("file")
+    quote.add_argument("text", help="The phrase to locate")
+
     args = p.parse_args()
 
     if args.cmd is None or args.cmd == "serve":
@@ -57,6 +69,18 @@ def main() -> int:
 
         page_list = [int(x) for x in args.pages.split(",") if x.strip()]
         _print_json(pdf_read_pages(args.file, page_list))
+        return 0
+
+    if args.cmd == "search":
+        from .server import pdf_search
+
+        _print_json(pdf_search(args.file, args.query, args.k))
+        return 0
+
+    if args.cmd == "quote":
+        from .server import pdf_quote
+
+        _print_json(pdf_quote(args.file, args.text))
         return 0
 
     p.print_help()

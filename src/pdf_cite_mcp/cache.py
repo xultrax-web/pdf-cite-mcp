@@ -7,9 +7,12 @@ served from different paths or copies is only parsed once.
 Schema:
   documents (sha256 PK, source, pages, title, author, has_text_layer, parsed_at)
   pages     (sha256, page_no, text, words_json, parsed_at)  PK (sha256, page_no)
+  pages_fts (FTS5 virtual table over page text · BM25 ranking)
 
 SQLite ACID semantics handle atomic per-row writes. The cache directory is
-created lazily; the DB file is created on first connect.
+created lazily; the DB file is created on first connect. FTS5 is required —
+modern Python ships with SQLite that includes it; we surface a clear error
+on stats() if the build is missing it.
 """
 
 from __future__ import annotations
@@ -64,6 +67,12 @@ CREATE TABLE IF NOT EXISTS pages (
     PRIMARY KEY (sha256, page_no)
 );
 CREATE INDEX IF NOT EXISTS idx_pages_sha ON pages(sha256);
+CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
+    sha256 UNINDEXED,
+    page_no UNINDEXED,
+    text,
+    tokenize = 'porter unicode61 remove_diacritics 2'
+);
 """
 
 
@@ -164,6 +173,15 @@ class Cache:
                     time.time(),
                 ),
             )
+            # FTS5 virtual tables don't honor ON CONFLICT — delete + insert.
+            con.execute(
+                "DELETE FROM pages_fts WHERE sha256 = ? AND page_no = ?",
+                (sha256, page_no),
+            )
+            con.execute(
+                "INSERT INTO pages_fts (sha256, page_no, text) VALUES (?, ?, ?)",
+                (sha256, page_no, text),
+            )
 
     def get_page(self, sha256: str, page_no: int) -> CachedPage | None:
         with self._connect() as con:
@@ -183,13 +201,48 @@ class Cache:
 
     def clear_document(self, sha256: str) -> None:
         with self._connect() as con:
+            con.execute("DELETE FROM pages_fts WHERE sha256 = ?", (sha256,))
             con.execute("DELETE FROM pages WHERE sha256 = ?", (sha256,))
             con.execute("DELETE FROM documents WHERE sha256 = ?", (sha256,))
 
     def clear_all(self) -> None:
         with self._connect() as con:
+            con.execute("DELETE FROM pages_fts")
             con.execute("DELETE FROM pages")
             con.execute("DELETE FROM documents")
+
+    def search_fts(self, sha256: str, query: str, k: int = 5) -> list[dict]:
+        """BM25 full-text search across one document's pages.
+
+        FTS5 query syntax supports phrase searches with double quotes,
+        boolean AND/OR/NOT, and prefix matching with `term*`. Lower
+        bm25() scores are better matches.
+
+        Returns up to `k` rows, each with: page_no, text, rank, snip
+        (a highlighted snippet of ~32 chars around the match).
+        """
+        with self._connect() as con:
+            rows = con.execute(
+                """SELECT
+                       page_no,
+                       text,
+                       bm25(pages_fts) AS rank,
+                       snippet(pages_fts, 2, '<<', '>>', '...', 16) AS snip
+                   FROM pages_fts
+                   WHERE sha256 = ? AND pages_fts MATCH ?
+                   ORDER BY rank
+                   LIMIT ?""",
+                (sha256, query, k),
+            ).fetchall()
+        return [
+            {
+                "page_no": r["page_no"],
+                "text": r["text"],
+                "rank": r["rank"],
+                "snip": r["snip"],
+            }
+            for r in rows
+        ]
 
     def stats(self) -> dict:
         with self._connect() as con:
