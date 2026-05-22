@@ -7,17 +7,16 @@
 
 ## Why this exists
 
-Every other PDF MCP returns text. This one returns text **and the rectangle on the page where it came from** — so the agent can ground every claim with a verifiable citation.
+Most PDF extraction returns text. **pdf-cite-mcp returns text AND the rectangle on the page where it came from.** Every tool's response includes `{page, bbox, snippet, confidence}` citations so an agent can ground every claim in a verifiable region — and a human can double-click to confirm in two seconds.
 
-| | Other PDF MCPs | pdf-cite-mcp |
-|--|--|--|
-| Page-level extraction | yes | yes |
-| Bounding-box citations | no | **yes** |
-| OCR for scanned PDFs | some | yes |
-| Table extraction | some | yes (markdown + cell cites) |
-| Forms + annotations | rare | yes (v0.4) |
-| Multi-document librarian | none | yes (v0.2) |
-| Vision-model fallback | none | yes (v0.3) |
+Built for grounded answers across the hard cases:
+
+- **Bbox citations on every tool.** Not a special mode — the contract is the data model. Even BM25 search results return with the page+bbox of the matched snippet.
+- **Tesseract OCR with per-word confidence.** Scanned PDFs are first-class. `pdf_info` detects pages with no text layer; `pdf_ocr_pages` renders them at configurable DPI and returns citations whose `confidence` reflects Tesseract's per-word score.
+- **Hybrid BM25 search via SQLite FTS5.** Phrase queries, boolean ops, prefix matching. Each result carries a citation.
+- **Table extraction via pdfplumber.** Detected tables become markdown with bbox citations spanning the table region.
+- **Vision-ready raster.** `pdf_render_page` returns a base64 PNG for vision-capable agents — for charts, figures, layout, signatures.
+- **SSRF-safe URL fetch.** `file_path` accepts `http(s)://` URLs; private-IP rejection + redirect blocking + content-type allowlist + 50 MB size cap before any bytes hit disk.
 
 ## Install
 
@@ -74,10 +73,11 @@ Every extraction tool returns this shape:
 |--|--|
 | `pdf_info` | pages, metadata, TOC, scanned-page detection |
 | `pdf_read_pages` | paginated read with page-level citations |
-| `pdf_search` | hybrid search → citations *(v0.1.x)* |
-| `pdf_quote` | "where in the PDF does it say X?" → precise word-level bbox *(v0.1.x)* |
-| `pdf_extract_table` | table → markdown with cell citations *(v0.1.x)* |
-| `pdf_render_page` | page → PNG for vision models *(v0.1.x)* |
+| `pdf_search` | BM25 via SQLite FTS5 · phrase / boolean / prefix · citations |
+| `pdf_quote` | exact phrase → word-union bbox citation · the killer tool |
+| `pdf_extract_tables` | tables → markdown with bbox citations |
+| `pdf_ocr_pages` | Tesseract OCR with per-word confidence |
+| `pdf_render_page` | page → base64 PNG for vision models |
 | `pdf_doctor` | health check on libs, OCR, cache |
 | `pdf_cache_stats` / `pdf_cache_clear` | operator-grade cache ops |
 
