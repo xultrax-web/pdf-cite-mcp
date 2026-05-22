@@ -386,6 +386,73 @@ def pdf_extract_tables(file_path: str, page: int) -> dict[str, Any]:
 
 
 @mcp.tool()
+def pdf_render_page(file_path: str, page: int, dpi: int = 150) -> dict[str, Any]:
+    """Render a PDF page to a PNG image (base64) for vision models.
+
+    Use when text extraction can't carry what the agent needs to see —
+    charts, figures, layout, handwritten annotations, signatures. The
+    image is returned as a base64-encoded PNG string; MCP clients with
+    vision can decode and attach it to a follow-up prompt.
+
+    Args:
+        file_path: Path or http(s) URL to the PDF.
+        page: 1-indexed page number.
+        dpi: Render DPI (default 150). 200-300 sharpens text inside charts
+            at 2-4x output size.
+
+    Returns:
+        {
+            "page", "dpi",
+            "width_px", "height_px",      // raster dimensions
+            "width_pt", "height_pt",      // page size in PDF points
+            "format": "png",
+            "data_base64": str,           // the PNG bytes, base64-encoded
+            "citation": { page, bbox=full-page, snippet, confidence }
+        }
+    """
+    import base64
+
+    import fitz  # type: ignore[import-untyped]
+
+    path = _resolve_pdf(file_path)
+    sha, cached = _parse_and_cache(path)
+    if page < 1 or page > cached.pages:
+        raise ValueError(f"page {page} out of range (1..{cached.pages})")
+
+    doc = fitz.open(str(path))
+    try:
+        scale = dpi / 72.0
+        matrix = fitz.Matrix(scale, scale)
+        rect = doc[page - 1].rect
+        pix = doc[page - 1].get_pixmap(matrix=matrix, alpha=False)
+        png_bytes = pix.tobytes("png")
+        width_px = pix.width
+        height_px = pix.height
+    finally:
+        doc.close()
+
+    citation = Citation(
+        page=page,
+        bbox=(0.0, 0.0, float(rect.width), float(rect.height)),
+        snippet=f"page {page} rendered at {dpi} DPI",
+        confidence=1.0,
+    )
+
+    return {
+        "page": page,
+        "dpi": dpi,
+        "width_px": width_px,
+        "height_px": height_px,
+        "width_pt": float(rect.width),
+        "height_pt": float(rect.height),
+        "format": "png",
+        "data_base64": base64.b64encode(png_bytes).decode("ascii"),
+        "citation": citation.model_dump(mode="json"),
+        "metadata": {"sha256": sha, "source": str(path)},
+    }
+
+
+@mcp.tool()
 def pdf_doctor() -> dict[str, Any]:
     """Operator-grade health check.
 

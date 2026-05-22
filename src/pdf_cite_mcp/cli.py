@@ -64,6 +64,18 @@ def main() -> int:
     tables.add_argument("file")
     tables.add_argument("page", type=int, help="1-indexed page number")
 
+    render = sub.add_parser(
+        "render",
+        help="Render a PDF page to PNG (base64) for vision models",
+    )
+    render.add_argument("file")
+    render.add_argument("page", type=int)
+    render.add_argument("--dpi", type=int, default=150, help="Render DPI (default 150)")
+    render.add_argument(
+        "--out",
+        help="Optional output PNG path; when set, writes the decoded image and omits data_base64",
+    )
+
     sub.add_parser("doctor", help="Health check: Python, deps, OCR, tables, cache")
     sub.add_parser("cache-stats", help="Cache stats: doc count, page count, size")
     cache_clear = sub.add_parser(
@@ -117,6 +129,21 @@ def main() -> int:
         from .server import pdf_extract_tables
 
         _print_json(pdf_extract_tables(args.file, args.page))
+        return 0
+
+    if args.cmd == "render":
+        import base64
+        from pathlib import Path as _P
+
+        from .server import pdf_render_page
+
+        result = pdf_render_page(args.file, args.page, args.dpi)
+        if args.out:
+            out_path = _P(args.out).expanduser()
+            out_path.write_bytes(base64.b64decode(result["data_base64"]))
+            del result["data_base64"]
+            result["out"] = str(out_path)
+        _print_json(result)
         return 0
 
     if args.cmd == "doctor":
