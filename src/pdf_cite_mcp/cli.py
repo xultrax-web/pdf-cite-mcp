@@ -64,6 +64,15 @@ def main() -> int:
     tables.add_argument("file")
     tables.add_argument("page", type=int, help="1-indexed page number")
 
+    sub.add_parser("doctor", help="Health check: Python, deps, OCR, tables, cache")
+    sub.add_parser("cache-stats", help="Cache stats: doc count, page count, size")
+    cache_clear = sub.add_parser(
+        "cache-clear", help="Clear cache (all docs unless --sha256 given)"
+    )
+    cache_clear.add_argument(
+        "--sha256", help="Clear only the document with this sha256"
+    )
+
     args = p.parse_args()
 
     if args.cmd is None or args.cmd == "serve":
@@ -108,6 +117,24 @@ def main() -> int:
         from .server import pdf_extract_tables
 
         _print_json(pdf_extract_tables(args.file, args.page))
+        return 0
+
+    if args.cmd == "doctor":
+        from .server import pdf_doctor
+
+        _print_json(pdf_doctor())
+        return 0
+
+    if args.cmd == "cache-stats":
+        from .server import pdf_cache_stats
+
+        _print_json(pdf_cache_stats())
+        return 0
+
+    if args.cmd == "cache-clear":
+        from .server import pdf_cache_clear
+
+        _print_json(pdf_cache_clear(args.sha256))
         return 0
 
     p.print_help()

@@ -30,6 +30,11 @@ def get_cache() -> Cache:
 
 
 def _resolve_pdf(file_path: str) -> Path:
+    if file_path.startswith(("http://", "https://")):
+        from .cache import cache_dir
+        from .url_fetch import safe_download
+
+        return safe_download(file_path, cache_dir())
     p = Path(file_path).expanduser().resolve()
     if not p.exists():
         raise FileNotFoundError(f"PDF not found: {p}")
@@ -378,6 +383,46 @@ def pdf_extract_tables(file_path: str, page: int) -> dict[str, Any]:
         },
     )
     return result.to_dict()
+
+
+@mcp.tool()
+def pdf_doctor() -> dict[str, Any]:
+    """Operator-grade health check.
+
+    Reports Python + dependency versions, OCR + table extras availability,
+    cache directory state (path, writable, size), and a list of any issues.
+    The `healthy` boolean is True iff no issues were found.
+
+    Run this first when MCP tools fail unexpectedly — most problems
+    (missing extras, no tesseract on PATH, unwritable cache dir) surface
+    here with an actionable hint.
+    """
+    from .doctor import run_doctor
+
+    return run_doctor()
+
+
+@mcp.tool()
+def pdf_cache_stats() -> dict[str, Any]:
+    """Return cache stats: document count, page count, DB file size + path."""
+    return get_cache().stats()
+
+
+@mcp.tool()
+def pdf_cache_clear(sha256: str | None = None) -> dict[str, Any]:
+    """Clear cache entries.
+
+    Args:
+        sha256: When provided, clear only that document's cached pages.
+            When None, clear EVERY cached document (use with care; next
+            parse re-extracts from source PDFs).
+    """
+    cache = get_cache()
+    if sha256:
+        cache.clear_document(sha256)
+        return {"cleared": "document", "sha256": sha256}
+    cache.clear_all()
+    return {"cleared": "all"}
 
 
 def run_stdio() -> None:
