@@ -43,6 +43,24 @@ Add to `claude_desktop_config.json`:
 
 Cursor, Claude Code, Cline, and Continue.dev use the same shape — see [docs/clients.md](docs/clients.md) (coming with v0.1.0 release).
 
+## VS Code (Copilot Chat)
+
+VS Code has native MCP support read by GitHub Copilot Chat. Add `.vscode/mcp.json` (workspace) or edit `mcp.json` via User Settings:
+
+```json
+{
+  "servers": {
+    "pdf-cite": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["pdf-cite-mcp"]
+    }
+  }
+}
+```
+
+> **Two VS Code paths.** Cline is a third-party AI extension with its own MCP server UI — use the Cline-format snippet for that. Copilot Chat is VS Code's native chat that reads `.vscode/mcp.json` directly. Pick whichever matches your assistant.
+
 ## The citation contract
 
 Every extraction tool returns this shape:
