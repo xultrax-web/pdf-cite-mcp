@@ -21,3 +21,12 @@ repos:
       - id: ruff-check
         args: [--fix]
         types_or: [python, pyi]
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.6.2
+    hooks:
+      # Format non-Python files · markdown, yaml, json (.prettierignore
+      # excludes anything ruff handles). Closes the same editor-bypass
+      # gap for prose + config files that ruff closes for source.
+      - id: prettier
+        types_or: [markdown, yaml, json]

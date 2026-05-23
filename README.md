@@ -87,31 +87,31 @@ Every extraction tool returns this shape:
 
 ## Tools (v0.1)
 
-| Tool | What it does |
-|--|--|
-| `pdf_info` | pages, metadata, TOC, scanned-page detection |
-| `pdf_read_pages` | paginated read with page-level citations |
-| `pdf_search` | BM25 via SQLite FTS5 · phrase / boolean / prefix · citations |
-| `pdf_quote` | exact phrase → word-union bbox citation · the killer tool |
-| `pdf_extract_tables` | tables → markdown with bbox citations |
-| `pdf_ocr_pages` | Tesseract OCR with per-word confidence |
-| `pdf_render_page` | page → base64 PNG for vision models |
-| `pdf_doctor` | health check on libs, OCR, cache |
-| `pdf_cache_stats` / `pdf_cache_clear` | operator-grade cache ops |
+| Tool                                  | What it does                                                 |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `pdf_info`                            | pages, metadata, TOC, scanned-page detection                 |
+| `pdf_read_pages`                      | paginated read with page-level citations                     |
+| `pdf_search`                          | BM25 via SQLite FTS5 · phrase / boolean / prefix · citations |
+| `pdf_quote`                           | exact phrase → word-union bbox citation · the killer tool    |
+| `pdf_extract_tables`                  | tables → markdown with bbox citations                        |
+| `pdf_ocr_pages`                       | Tesseract OCR with per-word confidence                       |
+| `pdf_render_page`                     | page → base64 PNG for vision models                          |
+| `pdf_doctor`                          | health check on libs, OCR, cache                             |
+| `pdf_cache_stats` / `pdf_cache_clear` | operator-grade cache ops                                     |
 
 ## Roadmap
 
-| Version | Wedge |
-|--|--|
-| **v0.1** | Citations + core extraction *(this release)* |
-| v0.2 | Multi-document librarian — query across a directory of PDFs |
-| v0.3 | Vision-model fallback router — VLM rescue for adversarial pages |
-| v0.4 | Forms + annotations — fillable PDFs, highlights, comments |
+| Version  | Wedge                                                           |
+| -------- | --------------------------------------------------------------- |
+| **v0.1** | Citations + core extraction _(this release)_                    |
+| v0.2     | Multi-document librarian — query across a directory of PDFs     |
+| v0.3     | Vision-model fallback router — VLM rescue for adversarial pages |
+| v0.4     | Forms + annotations — fillable PDFs, highlights, comments       |
 
 ## Environment variables
 
-| Variable | Default | Purpose |
-|--|--|--|
+| Variable             | Default       | Purpose                  |
+| -------------------- | ------------- | ------------------------ |
 | `PDF_CITE_CACHE_DIR` | `~/.pdf-cite` | Override cache directory |
 
 ## Architecture

@@ -1,0 +1,20 @@
+# Python source · handled by ruff (see .pre-commit-config.yaml)
+**/*.py
+**/*.pyi
+
+# Generated + vendor
+.venv/
+.pytest_cache/
+.ruff_cache/
+.github/.workflow-cache/
+dist/
+build/
+*.egg-info/
+
+# Package manager lockfile · keep as-is
+uv.lock
+
+# Binary / non-text
+*.png
+*.jpg
+*.pdf
